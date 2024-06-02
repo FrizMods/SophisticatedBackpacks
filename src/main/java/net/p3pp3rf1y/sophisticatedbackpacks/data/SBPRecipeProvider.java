@@ -11,14 +11,19 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraftforge.common.Tags;
+import net.minecraftforge.common.crafting.conditions.ModLoadedCondition;
 import net.p3pp3rf1y.sophisticatedbackpacks.SophisticatedBackpacks;
+import net.p3pp3rf1y.sophisticatedbackpacks.compat.chipped.ChippedCompat;
 import net.p3pp3rf1y.sophisticatedbackpacks.crafting.BackpackDyeRecipe;
 import net.p3pp3rf1y.sophisticatedbackpacks.crafting.BackpackUpgradeRecipe;
 import net.p3pp3rf1y.sophisticatedbackpacks.crafting.BasicBackpackRecipe;
 import net.p3pp3rf1y.sophisticatedbackpacks.crafting.SmithingBackpackUpgradeRecipe;
 import net.p3pp3rf1y.sophisticatedbackpacks.init.ModItems;
+import net.p3pp3rf1y.sophisticatedcore.compat.CompatModIds;
+import net.p3pp3rf1y.sophisticatedcore.compat.chipped.BlockTransformationUpgradeItem;
 import net.p3pp3rf1y.sophisticatedcore.crafting.ShapeBasedRecipeBuilder;
 import net.p3pp3rf1y.sophisticatedcore.crafting.UpgradeNextTierRecipe;
 import net.p3pp3rf1y.sophisticatedcore.util.RegistryHelper;
@@ -70,6 +75,24 @@ public class SBPRecipeProvider extends RecipeProvider {
 				.pattern("IBI")
 				.pattern("III")
 				.define('I', Tags.Items.INGOTS_IRON)
+				.define('B', ModItems.BACKPACK.get())
+				.unlockedBy("has_backpack", has(ModItems.BACKPACK.get()))
+				.save(consumer);
+
+		ShapeBasedRecipeBuilder.shaped(ModItems.IRON_BACKPACK.get(), BackpackUpgradeRecipe.SERIALIZER)
+				.pattern(" I ")
+				.pattern("IBI")
+				.pattern(" I ")
+				.define('I', Tags.Items.INGOTS_IRON)
+				.define('B', ModItems.COPPER_BACKPACK.get())
+				.unlockedBy("has_copper_backpack", has(ModItems.COPPER_BACKPACK.get()))
+				.save(consumer, new ResourceLocation(SophisticatedBackpacks.getRegistryName("iron_backpack_from_copper")));
+
+		ShapeBasedRecipeBuilder.shaped(ModItems.COPPER_BACKPACK.get(), BackpackUpgradeRecipe.SERIALIZER)
+				.pattern("CCC")
+				.pattern("CBC")
+				.pattern("CCC")
+				.define('C', Tags.Items.INGOTS_COPPER)
 				.define('B', ModItems.BACKPACK.get())
 				.unlockedBy("has_backpack", has(ModItems.BACKPACK.get()))
 				.save(consumer);
@@ -351,6 +374,15 @@ public class SBPRecipeProvider extends RecipeProvider {
 				.unlockedBy(HAS_UPGRADE_BASE, has(ModItems.UPGRADE_BASE.get()))
 				.save(consumer);
 
+		ShapeBasedRecipeBuilder.shaped(ModItems.STACK_UPGRADE_STARTER_TIER.get())
+				.pattern("CCC")
+				.pattern("CBC")
+				.pattern("CCC")
+				.define('B', ModItems.UPGRADE_BASE.get())
+				.define('C', Tags.Items.STORAGE_BLOCKS_COPPER)
+				.unlockedBy(HAS_UPGRADE_BASE, has(ModItems.UPGRADE_BASE.get()))
+				.save(consumer);
+
 		ShapeBasedRecipeBuilder.shaped(ModItems.STACK_UPGRADE_TIER_1.get())
 				.pattern("III")
 				.pattern("IBI")
@@ -359,6 +391,15 @@ public class SBPRecipeProvider extends RecipeProvider {
 				.define('I', Tags.Items.STORAGE_BLOCKS_IRON)
 				.unlockedBy(HAS_UPGRADE_BASE, has(ModItems.UPGRADE_BASE.get()))
 				.save(consumer);
+
+		ShapeBasedRecipeBuilder.shaped(ModItems.STACK_UPGRADE_TIER_1.get())
+				.pattern(" I ")
+				.pattern("ISI")
+				.pattern(" I ")
+				.define('S', ModItems.STACK_UPGRADE_STARTER_TIER.get())
+				.define('I', Tags.Items.STORAGE_BLOCKS_IRON)
+				.unlockedBy(HAS_UPGRADE_BASE, has(ModItems.UPGRADE_BASE.get()))
+				.save(consumer, new ResourceLocation(SophisticatedBackpacks.getRegistryName("stack_upgrade_tier_1_from_starter")));
 
 		ShapeBasedRecipeBuilder.shaped(ModItems.STACK_UPGRADE_TIER_2.get())
 				.pattern("GGG")
@@ -572,10 +613,48 @@ public class SBPRecipeProvider extends RecipeProvider {
 				.unlockedBy("has_auto_smelting_upgrade", has(ModItems.AUTO_SMELTING_UPGRADE.get()))
 				.save(consumer, SophisticatedBackpacks.getRL("auto_blasting_upgrade_from_auto_smelting_upgrade"));
 
+		ShapeBasedRecipeBuilder.shaped(ModItems.ANVIL_UPGRADE.get())
+				.pattern("ADA")
+				.pattern("IBI")
+				.pattern(" C ")
+				.define('A', Items.ANVIL)
+				.define('D', Tags.Items.GEMS_DIAMOND)
+				.define('I', Tags.Items.INGOTS_IRON)
+				.define('B', ModItems.UPGRADE_BASE.get())
+				.define('C', Tags.Items.CHESTS_WOODEN)
+				.unlockedBy(HAS_UPGRADE_BASE, has(ModItems.UPGRADE_BASE.get()))
+				.save(consumer);
+
 		new UpgradeRecipeBuilder(SmithingBackpackUpgradeRecipe.SERIALIZER, Ingredient.of(ModItems.DIAMOND_BACKPACK.get()),
 				Ingredient.of(Items.NETHERITE_INGOT), ModItems.NETHERITE_BACKPACK.get())
 				.unlocks("has_diamond_backpack", has(ModItems.DIAMOND_BACKPACK.get()))
 				.save(consumer, RegistryHelper.getItemKey(ModItems.NETHERITE_BACKPACK.get()));
+
+		addChippedUpgradeRecipes(consumer);
+	}
+
+	private static void addChippedUpgradeRecipes(Consumer<FinishedRecipe> consumer) {
+		addChippedUpgradeRecipe(consumer, ChippedCompat.BOTANIST_WORKBENCH_UPGRADE.get(), earth.terrarium.chipped.registry.ModBlocks.BOTANIST_WORKBENCH.get());
+		addChippedUpgradeRecipe(consumer, ChippedCompat.GLASSBLOWER_WORKBENCH_UPGRADE.get(), earth.terrarium.chipped.registry.ModBlocks.GLASSBLOWER.get());
+		addChippedUpgradeRecipe(consumer, ChippedCompat.CARPENTER_WORKBENCH_UPGRADE.get(), earth.terrarium.chipped.registry.ModBlocks.CARPENTERS_TABLE.get());
+		addChippedUpgradeRecipe(consumer, ChippedCompat.SHEPHERD_WORKBENCH_UPGRADE.get(), earth.terrarium.chipped.registry.ModBlocks.LOOM_TABLE.get());
+		addChippedUpgradeRecipe(consumer, ChippedCompat.MASON_WORKBENCH_UPGRADE.get(), earth.terrarium.chipped.registry.ModBlocks.MASON_TABLE.get());
+		addChippedUpgradeRecipe(consumer, ChippedCompat.PHILOSOPHER_WORKBENCH_UPGRADE.get(), earth.terrarium.chipped.registry.ModBlocks.ALCHEMY_BENCH.get());
+		addChippedUpgradeRecipe(consumer, ChippedCompat.TINKERER_WORKBENCH_UPGRADE.get(), earth.terrarium.chipped.registry.ModBlocks.MECHANIST_WORKBENCH.get());
+	}
+
+	private static void addChippedUpgradeRecipe(Consumer<FinishedRecipe> consumer, BlockTransformationUpgradeItem upgrade, Block workbench) {
+		ShapeBasedRecipeBuilder.shaped(upgrade)
+				.pattern(" W ")
+				.pattern("IBI")
+				.pattern(" R ")
+				.define('B', ModItems.UPGRADE_BASE.get())
+				.define('R', Tags.Items.DUSTS_REDSTONE)
+				.define('I', Tags.Items.INGOTS_IRON)
+				.define('W', workbench)
+				.unlockedBy(HAS_UPGRADE_BASE, has(ModItems.UPGRADE_BASE.get()))
+				.condition(new ModLoadedCondition(CompatModIds.CHIPPED))
+				.save(consumer);
 	}
 
 	private static InventoryChangeTrigger.TriggerInstance hasLeather() {

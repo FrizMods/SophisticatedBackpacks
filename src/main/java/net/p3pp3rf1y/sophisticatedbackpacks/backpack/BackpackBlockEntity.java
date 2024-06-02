@@ -18,12 +18,14 @@ import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fluids.capability.templates.EmptyFluidHandler;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
+import net.p3pp3rf1y.sophisticatedbackpacks.Config;
 import net.p3pp3rf1y.sophisticatedbackpacks.api.CapabilityBackpackWrapper;
 import net.p3pp3rf1y.sophisticatedbackpacks.backpack.wrapper.EmptyEnergyStorage;
 import net.p3pp3rf1y.sophisticatedbackpacks.backpack.wrapper.IBackpackWrapper;
 import net.p3pp3rf1y.sophisticatedcore.api.IStorageWrapper;
 import net.p3pp3rf1y.sophisticatedcore.controller.ControllerBlockEntityBase;
 import net.p3pp3rf1y.sophisticatedcore.controller.IControllableStorage;
+import net.p3pp3rf1y.sophisticatedcore.inventory.CachedFailedInsertInventoryHandler;
 import net.p3pp3rf1y.sophisticatedcore.renderdata.RenderInfo;
 import net.p3pp3rf1y.sophisticatedcore.renderdata.TankPosition;
 import net.p3pp3rf1y.sophisticatedcore.upgrades.ITickableUpgrade;
@@ -139,9 +141,13 @@ public class BackpackBlockEntity extends BlockEntity implements IControllableSto
 	@Nonnull
 	@Override
 	public <T> LazyOptional<T> getCapability(Capability<T> cap, @Nullable Direction side) {
+		if (side != null && level != null && Config.SERVER.noConnectionBlocks.isBlockConnectionDisallowed(level.getBlockState(getBlockPos().relative(side)).getBlock())) {
+			return super.getCapability(cap, side);
+		}
+
 		if (cap == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
 			if (itemHandlerCap == null) {
-				itemHandlerCap = LazyOptional.of(() -> getBackpackWrapper().getInventoryForInputOutput());
+				itemHandlerCap = LazyOptional.of(() -> new CachedFailedInsertInventoryHandler(() -> getBackpackWrapper().getInventoryForInputOutput(), () -> level != null ? level.getGameTime() : 0));
 			}
 			return itemHandlerCap.cast();
 		} else if (cap == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY) {
@@ -166,16 +172,19 @@ public class BackpackBlockEntity extends BlockEntity implements IControllableSto
 
 	private void invalidateBackpackCaps() {
 		if (itemHandlerCap != null) {
-			itemHandlerCap.invalidate();
+			LazyOptional<IItemHandler> tempItemHandlerCap = itemHandlerCap;
 			itemHandlerCap = null;
+			tempItemHandlerCap.invalidate();
 		}
 		if (fluidHandlerCap != null) {
-			fluidHandlerCap.invalidate();
+			LazyOptional<IFluidHandler> tempFluidHandlerCap = fluidHandlerCap;
 			fluidHandlerCap = null;
+			tempFluidHandlerCap.invalidate();
 		}
 		if (energyStorageCap != null) {
-			energyStorageCap.invalidate();
+			LazyOptional<IEnergyStorage> tempEnergyStorageCap = energyStorageCap;
 			energyStorageCap = null;
+			tempEnergyStorageCap.invalidate();
 		}
 	}
 
@@ -251,8 +260,10 @@ public class BackpackBlockEntity extends BlockEntity implements IControllableSto
 	@Override
 	public void registerController(ControllerBlockEntityBase controllerBlockEntity) {
 		IControllableStorage.super.registerController(controllerBlockEntity);
-		backpackWrapper.registerOnSlotsChangeListener(this::changeSlots);
-		backpackWrapper.registerOnInventoryHandlerRefreshListener(this::registerInventoryStackListeners);
+		if (level != null && !level.isClientSide) {
+			backpackWrapper.registerOnSlotsChangeListener(this::changeSlots);
+			backpackWrapper.registerOnInventoryHandlerRefreshListener(this::registerInventoryStackListeners);
+		}
 	}
 
 	@Override

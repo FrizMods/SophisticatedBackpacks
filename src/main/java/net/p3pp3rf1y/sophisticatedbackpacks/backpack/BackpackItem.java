@@ -21,8 +21,11 @@ import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.ClickAction;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.DyeColor;
@@ -65,6 +68,7 @@ import net.p3pp3rf1y.sophisticatedbackpacks.util.PlayerInventoryProvider;
 import net.p3pp3rf1y.sophisticatedcore.api.IStashStorageItem;
 import net.p3pp3rf1y.sophisticatedcore.api.IStorageWrapper;
 import net.p3pp3rf1y.sophisticatedcore.client.gui.utils.TranslationHelper;
+import net.p3pp3rf1y.sophisticatedcore.settings.memory.MemorySettingsCategory;
 import net.p3pp3rf1y.sophisticatedcore.upgrades.ITickableUpgrade;
 import net.p3pp3rf1y.sophisticatedcore.upgrades.jukebox.ServerStorageSoundHandler;
 import net.p3pp3rf1y.sophisticatedcore.util.ColorHelper;
@@ -166,7 +170,7 @@ public class BackpackItem extends ItemBase implements IStashStorageItem {
 
 	@Override
 	public boolean hasCustomEntity(ItemStack stack) {
-		return hasEverlastingUpgrade(stack);
+		return true;
 	}
 
 	private boolean hasEverlastingUpgrade(ItemStack stack) {
@@ -176,9 +180,12 @@ public class BackpackItem extends ItemBase implements IStashStorageItem {
 	@Nullable
 	@Override
 	public Entity createEntity(Level world, Entity entity, ItemStack itemstack) {
-		if (!(entity instanceof ItemEntity)) {
+		if (!(entity instanceof ItemEntity itemEntity)) {
 			return null;
 		}
+
+		UUIDDeduplicator.dedupeBackpackItemEntityInArea(itemEntity);
+
 		return hasEverlastingUpgrade(itemstack) ? createEverlastingBackpack(world, (ItemEntity) entity, itemstack) : null;
 	}
 
@@ -302,12 +309,16 @@ public class BackpackItem extends ItemBase implements IStashStorageItem {
 			@Nonnull
 			@Override
 			public <T> LazyOptional<T> getCapability(Capability<T> cap, @Nullable Direction side) {
+				if (stack.getCount() > 1) {
+					return LazyOptional.empty();
+				}
+
 				initWrapper();
 				if (cap == CapabilityBackpackWrapper.getCapabilityInstance()) {
 					return LazyOptional.of(() -> wrapper).cast();
 				} else if (cap == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
 					return LazyOptional.of(() -> wrapper.getInventoryForInputOutput()).cast();
-				} else if (cap == CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY && Boolean.TRUE.equals(Config.COMMON.itemFluidHandlerEnabled.get())) {
+				} else if (cap == CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY && Boolean.TRUE.equals(Config.SERVER.itemFluidHandlerEnabled.get())) {
 					return wrapper.getFluidHandler().<LazyOptional<T>>map(handler -> LazyOptional.of(() -> handler).cast()).orElseGet(LazyOptional::empty);
 				} else if (cap == CapabilityEnergy.ENERGY) {
 					return wrapper.getEnergyStorage().<LazyOptional<T>>map(storage -> LazyOptional.of(() -> storage).cast()).orElseGet(LazyOptional::empty);
@@ -325,7 +336,7 @@ public class BackpackItem extends ItemBase implements IStashStorageItem {
 
 	@Override
 	public void onArmorTick(ItemStack stack, Level level, Player player) {
-		if (level.isClientSide || player.isSpectator() || player.isDeadOrDying() || Boolean.FALSE.equals(Config.COMMON.nerfsConfig.onlyWornBackpackTriggersUpgrades.get())) {
+		if (level.isClientSide || player.isSpectator() || player.isDeadOrDying() || Boolean.FALSE.equals(Config.SERVER.nerfsConfig.onlyWornBackpackTriggersUpgrades.get())) {
 			return;
 		}
 		stack.getCapability(CapabilityBackpackWrapper.getCapabilityInstance()).ifPresent(
@@ -337,7 +348,7 @@ public class BackpackItem extends ItemBase implements IStashStorageItem {
 
 	@Override
 	public void inventoryTick(ItemStack stack, Level level, Entity entityIn, int itemSlot, boolean isSelected) {
-		if (level.isClientSide || !(entityIn instanceof Player player) || player.isSpectator() || player.isDeadOrDying() || (Config.COMMON.nerfsConfig.onlyWornBackpackTriggersUpgrades.get() && itemSlot > -1)) {
+		if (level.isClientSide || !(entityIn instanceof Player player) || player.isSpectator() || player.isDeadOrDying() || (Config.SERVER.nerfsConfig.onlyWornBackpackTriggersUpgrades.get() && itemSlot > -1)) {
 			return;
 		}
 		stack.getCapability(CapabilityBackpackWrapper.getCapabilityInstance()).ifPresent(
@@ -387,13 +398,60 @@ public class BackpackItem extends ItemBase implements IStashStorageItem {
 	}
 
 	@Override
-	public boolean isItemStashable(ItemStack storageStack, ItemStack stack) {
-		return storageStack.getCapability(CapabilityBackpackWrapper.getCapabilityInstance()).map(wrapper -> wrapper.getInventoryForUpgradeProcessing().insertItem(stack, true).getCount() != stack.getCount()).orElse(false);
+	public StashResult getItemStashable(ItemStack storageStack, ItemStack stack) {
+		return storageStack.getCapability(CapabilityBackpackWrapper.getCapabilityInstance()).map(wrapper -> {
+			if (wrapper.getInventoryForUpgradeProcessing().insertItem(stack, true).getCount() == stack.getCount()) {
+				return StashResult.NO_SPACE;
+			}
+			if (wrapper.getInventoryHandler().getSlotTracker().getItems().contains(stack.getItem()) || wrapper.getSettingsHandler().getTypeCategory(MemorySettingsCategory.class).matchesFilter(stack)) {
+				return StashResult.MATCH_AND_SPACE;
+			}
+
+			return StashResult.SPACE;
+		}).orElse(StashResult.NO_SPACE);
 	}
 
 	public record BackpackContentsTooltip(ItemStack backpack) implements TooltipComponent {
 		public ItemStack getBackpack() {
 			return backpack;
 		}
+	}
+
+	@Override
+	public boolean overrideStackedOnOther(ItemStack storageStack, Slot slot, ClickAction action, Player player) {
+		if (storageStack.getCount() > 1 || !slot.mayPickup(player) || action != ClickAction.SECONDARY) {
+			return super.overrideStackedOnOther(storageStack, slot, action, player);
+		}
+
+		ItemStack stackToStash = slot.getItem();
+		ItemStack stashResult = stash(storageStack, stackToStash);
+		if (stashResult.getCount() != stackToStash.getCount()) {
+			slot.set(stashResult);
+			slot.onTake(player, stashResult);
+			return true;
+		}
+
+		return super.overrideStackedOnOther(storageStack, slot, action, player);
+	}
+
+	@Override
+	public boolean overrideOtherStackedOnMe(ItemStack storageStack, ItemStack otherStack, Slot slot, ClickAction action, Player player, SlotAccess carriedAccess) {
+		if (storageStack.getCount() > 1 || !slot.mayPlace(storageStack) || action != ClickAction.SECONDARY) {
+			return super.overrideOtherStackedOnMe(storageStack, otherStack, slot, action, player, carriedAccess);
+		}
+
+		ItemStack result = stash(storageStack, otherStack);
+		if (result.getCount() != otherStack.getCount()) {
+			carriedAccess.set(result);
+			slot.set(storageStack);
+			return true;
+		}
+
+		return super.overrideOtherStackedOnMe(storageStack, otherStack, slot, action, player, carriedAccess);
+	}
+
+	@Override
+	public boolean canFitInsideContainerItems() {
+		return Config.SERVER.canBePlacedInContainerItems.get();
 	}
 }

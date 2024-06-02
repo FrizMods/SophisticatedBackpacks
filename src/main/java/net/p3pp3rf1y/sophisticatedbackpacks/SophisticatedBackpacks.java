@@ -35,7 +35,6 @@ import org.apache.logging.log4j.Logger;
 public class SophisticatedBackpacks {
 	public static final String MOD_ID = "sophisticatedbackpacks";
 	public static final Logger LOGGER = LogManager.getLogger(MOD_ID);
-	public static final SBPPacketHandler PACKET_HANDLER = new SBPPacketHandler(MOD_ID);
 
 	public static final CreativeModeTab ITEM_GROUP = new SBItemGroup();
 
@@ -44,8 +43,10 @@ public class SophisticatedBackpacks {
 
 	@SuppressWarnings("java:S1118") //needs to be public for mod to work
 	public SophisticatedBackpacks() {
+		ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, Config.SERVER_SPEC);
 		ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.COMMON_SPEC);
 		commonEventHandler.registerHandlers();
+		ModCompat.initCompats();
 		if (FMLEnvironment.dist == Dist.CLIENT) {
 			ClientEventHandler.registerHandlers();
 		}
@@ -53,7 +54,7 @@ public class SophisticatedBackpacks {
 		IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
 		modBus.addListener(SophisticatedBackpacks::setup);
 		modBus.addListener(DataGenerators::gatherData);
-		modBus.addListener(Config.COMMON::onConfigReload);
+		Config.SERVER.initListeners(modBus);
 		modBus.addListener(CapabilityBackpackWrapper::onRegister);
 		modBus.addListener(SophisticatedBackpacks::clientSetup);
 		ModLoot.init(modBus);
@@ -64,8 +65,8 @@ public class SophisticatedBackpacks {
 	}
 
 	private static void setup(FMLCommonSetupEvent event) {
-		PACKET_HANDLER.init();
-		ModCompat.initCompats();
+		SBPPacketHandler.INSTANCE.init();
+		ModCompat.compatsSetup();
 		event.enqueueWork(ModItems::registerDispenseBehavior);
 		ModItems.registerCauldronInteractions();
 		SBPCommand.registerArgumentTypes();
