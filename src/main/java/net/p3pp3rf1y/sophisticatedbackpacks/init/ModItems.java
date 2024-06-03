@@ -89,10 +89,7 @@ import net.p3pp3rf1y.sophisticatedcore.upgrades.compacting.CompactingUpgradeItem
 import net.p3pp3rf1y.sophisticatedcore.upgrades.compacting.CompactingUpgradeTab;
 import net.p3pp3rf1y.sophisticatedcore.upgrades.compacting.CompactingUpgradeWrapper;
 import net.p3pp3rf1y.sophisticatedcore.upgrades.cooking.*;
-import net.p3pp3rf1y.sophisticatedcore.upgrades.crafting.CraftingUpgradeContainer;
-import net.p3pp3rf1y.sophisticatedcore.upgrades.crafting.CraftingUpgradeItem;
-import net.p3pp3rf1y.sophisticatedcore.upgrades.crafting.CraftingUpgradeTab;
-import net.p3pp3rf1y.sophisticatedcore.upgrades.crafting.CraftingUpgradeWrapper;
+import net.p3pp3rf1y.sophisticatedcore.upgrades.crafting.*;
 import net.p3pp3rf1y.sophisticatedcore.upgrades.feeding.FeedingUpgradeContainer;
 import net.p3pp3rf1y.sophisticatedcore.upgrades.feeding.FeedingUpgradeItem;
 import net.p3pp3rf1y.sophisticatedcore.upgrades.feeding.FeedingUpgradeTab;
@@ -209,6 +206,8 @@ public class ModItems {
 			() -> new AutoBlastingUpgradeItem(SophisticatedBackpacks.ITEM_GROUP, Config.SERVER.autoBlastingUpgrade, Config.SERVER.maxUpgradesPerStorage));
 	public static final RegistryObject<CraftingUpgradeItem> CRAFTING_UPGRADE = ITEMS.register("crafting_upgrade",
 			() -> new CraftingUpgradeItem(SophisticatedBackpacks.ITEM_GROUP, Config.SERVER.maxUpgradesPerStorage));
+	public static final RegistryObject<AdvancedCraftingUpgradeItem> ADVANCED_CRAFTING_UPGRADE = ITEMS.register("advanced_crafting_upgrade",
+			() -> new AdvancedCraftingUpgradeItem(SophisticatedBackpacks.ITEM_GROUP, Config.SERVER.maxUpgradesPerStorage));
 	public static final RegistryObject<StonecutterUpgradeItem> STONECUTTER_UPGRADE = ITEMS.register("stonecutter_upgrade",
 			() -> new StonecutterUpgradeItem(SophisticatedBackpacks.ITEM_GROUP, Config.SERVER.maxUpgradesPerStorage));
 	public static final RegistryObject<StackUpgradeItem> STACK_UPGRADE_STARTER_TIER = ITEMS.register("stack_upgrade_starter_tier", () ->
@@ -285,6 +284,7 @@ public class ModItems {
 	private static final UpgradeContainerType<CookingUpgradeWrapper.BlastingUpgradeWrapper, CookingUpgradeContainer<BlastingRecipe, CookingUpgradeWrapper.BlastingUpgradeWrapper>> BLASTING_TYPE = new UpgradeContainerType<>(CookingUpgradeContainer::new);
 	private static final UpgradeContainerType<AutoCookingUpgradeWrapper.AutoBlastingUpgradeWrapper, AutoCookingUpgradeContainer<BlastingRecipe, AutoCookingUpgradeWrapper.AutoBlastingUpgradeWrapper>> AUTO_BLASTING_TYPE = new UpgradeContainerType<>(AutoCookingUpgradeContainer::new);
 	private static final UpgradeContainerType<CraftingUpgradeWrapper, CraftingUpgradeContainer> CRAFTING_TYPE = new UpgradeContainerType<>(CraftingUpgradeContainer::new);
+	private static final UpgradeContainerType<AdvancedCraftingUpgradeWrapper, AdvancedCraftingUpgradeContainer> ADVANCED_CRAFTING_TYPE = new UpgradeContainerType<>(AdvancedCraftingUpgradeContainer::new);
 	private static final UpgradeContainerType<InceptionUpgradeWrapper, InceptionUpgradeContainer> INCEPTION_TYPE = new UpgradeContainerType<>(InceptionUpgradeContainer::new);
 	private static final UpgradeContainerType<StonecutterUpgradeWrapper, StonecutterUpgradeContainer> STONECUTTER_TYPE = new UpgradeContainerType<>(StonecutterUpgradeContainer::new);
 	private static final UpgradeContainerType<JukeboxUpgradeItem.Wrapper, JukeboxUpgradeContainer> JUKEBOX_TYPE = new UpgradeContainerType<>(JukeboxUpgradeContainer::new);
@@ -322,6 +322,7 @@ public class ModItems {
 		UpgradeContainerRegistry.register(BLASTING_UPGRADE.getId(), BLASTING_TYPE);
 		UpgradeContainerRegistry.register(AUTO_BLASTING_UPGRADE.getId(), AUTO_BLASTING_TYPE);
 		UpgradeContainerRegistry.register(CRAFTING_UPGRADE.getId(), CRAFTING_TYPE);
+		UpgradeContainerRegistry.register(ADVANCED_CRAFTING_UPGRADE.getId(), ADVANCED_CRAFTING_TYPE);
 		UpgradeContainerRegistry.register(INCEPTION_UPGRADE.getId(), INCEPTION_TYPE);
 		UpgradeContainerRegistry.register(STONECUTTER_UPGRADE.getId(), STONECUTTER_TYPE);
 		UpgradeContainerRegistry.register(JUKEBOX_UPGRADE.getId(), JUKEBOX_TYPE);
@@ -381,7 +382,9 @@ public class ModItems {
 			UpgradeGuiManager.registerTab(AUTO_BLASTING_TYPE, (AutoCookingUpgradeContainer<BlastingRecipe, AutoCookingUpgradeWrapper.AutoBlastingUpgradeWrapper> uc, Position p, StorageScreenBase<?> s) ->
 					new AutoCookingUpgradeTab.AutoBlastingUpgradeTab(uc, p, s, Config.SERVER.autoBlastingUpgrade.inputFilterSlotsInRow.get(), Config.SERVER.autoBlastingUpgrade.fuelFilterSlotsInRow.get()));
 			UpgradeGuiManager.registerTab(CRAFTING_TYPE, (CraftingUpgradeContainer uc, Position p, StorageScreenBase<?> s) ->
-					new CraftingUpgradeTab(uc, p, s, SBPButtonDefinitions.SHIFT_CLICK_TARGET, SBPButtonDefinitions.REPLENISH));
+					new CraftingUpgradeTab(uc, p, s, SBPButtonDefinitions.SHIFT_CLICK_TARGET));
+			UpgradeGuiManager.registerTab(ADVANCED_CRAFTING_TYPE, (AdvancedCraftingUpgradeContainer uc, Position p, StorageScreenBase<?> s) ->
+					new AdvancedCraftingUpgradeTab(uc, p, s, SBPButtonDefinitions.SHIFT_CLICK_TARGET, SBPButtonDefinitions.REFILL_CRAFTING_GRID));
 			UpgradeGuiManager.registerTab(INCEPTION_TYPE, InceptionUpgradeTab::new);
 			UpgradeGuiManager.registerTab(STONECUTTER_TYPE, (StonecutterUpgradeContainer upgradeContainer, Position position, StorageScreenBase<?> screen) ->
 					new StonecutterUpgradeTab(upgradeContainer, position, screen, SBPButtonDefinitions.SHIFT_CLICK_TARGET));
